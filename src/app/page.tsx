@@ -1,65 +1,74 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import SearchBar from "@/components/SearchBar";
+import HymnCard from "@/components/HymnCard";
+import { getAllHymns, searchHymns } from "@/lib/hymns";
+
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleSearchFocus() {
+    if (blurTimeout.current) clearTimeout(blurTimeout.current);
+    setIsSearchFocused(true);
+  }
+
+  function handleSearchBlur() {
+    blurTimeout.current = setTimeout(() => setIsSearchFocused(false), 200);
+  }
+  const shouldFocus = searchParams.get("focus") === "1";
+
+  useEffect(() => {
+    setQuery(searchParams.get("q") ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const hymns = useMemo(
+    () => (query ? searchHymns(query) : getAllHymns()),
+    [query]
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="mx-auto max-w-md px-4 pb-16">
+      {!isSearchFocused && (
+        <header className="pb-6 pt-12 text-center">
+          <h1 className="font-display text-6xl font-semibold tracking-tight text-burgundy">
+            Hinário
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+        </header>
+      )}
+
+      <div className="sticky top-0 z-20 -mx-4 bg-transparent px-4 py-3">
+        <SearchBar
+          value={query}
+          onChange={setQuery}
+          autoFocus={shouldFocus}
+          onFocus={handleSearchFocus}
+          onBlur={handleSearchBlur}
+        />
+      </div>
+
+      <section className="mt-6 flex flex-col gap-3">
+        {hymns.length === 0 ? (
+          <p className="py-8 text-center font-ui text-sm text-ink-soft">
+            Nenhum hino encontrado.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        ) : (
+          hymns.map((hymn) => <HymnCard key={hymn.number} hymn={hymn} />)
+        )}
+      </section>
+    </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
